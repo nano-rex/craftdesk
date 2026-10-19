@@ -1,4 +1,4 @@
-# Offline Workbench
+# Craftdesk
 
 A static, browser-only workspace combining three local tools:
 
