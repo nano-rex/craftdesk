@@ -1,7 +1,8 @@
 const apps = {
   gantt: { title: "Project planner", kicker: "TIMELINES", src: "apps/gantt/gantt.html" },
   converter: { title: "File converter", kicker: "LOCAL FORMATS", src: "apps/converter/index.html" },
-  "min-doc": { title: "PDF editor", kicker: "DOCUMENTS", src: "apps/min-doc/index.html" }
+  "min-doc": { title: "PDF editor", kicker: "DOCUMENTS", src: "apps/min-doc/index.html" },
+  weather: { title: "Weather report", kicker: "OBSERVATIONS", src: "apps/weather/index.html" }
 };
 const intro = document.querySelector("#intro");
 const view = document.querySelector("#toolView");

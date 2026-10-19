@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Monthly Weather Wheel</title>
+<link rel="stylesheet" href="../shared.css" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <section class="hero card">
+      <div>
+        <p class="eyebrow">Interactive weather worksheet</p>
+        <h1>Monthly Weather Wheel</h1>
+        <p class="lede">
+          Track 35 consecutive days with a two-ring weather wheel. The inner ring covers 12am to 11am and the
+          outer ring covers 12pm to 11pm.
+        </p>
+      </div>
+      <div class="hero-stats">
+        <div class="stat">
+          <span class="stat-label">Report start</span>
+          <strong id="reportStartLabel">--</strong>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Painted slices</span>
+          <strong id="paintedCount">0 / 840</strong>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Selected weather</span>
+          <strong id="selectedWeatherLabel"><span id="selectedWeatherSwatch" class="selected-weather-swatch"></span><span id="selectedWeatherText">Fair</span></strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="controls card">
+      <div class="control-group">
+        <label>
+          Start date
+          <input id="startDate" type="date" />
+        </label>
+        <label>
+          Report title
+          <input id="reportTitle" type="text" placeholder="Weather report" />
+        </label>
+      </div>
+
+      <div class="action-row">
+        <button id="clearDayBtn" class="ghost" type="button">Clear selected day</button>
+        <button id="clearAllBtn" class="ghost" type="button">Clear all</button>
+        <button id="exportPngBtn" type="button">Export PNG</button>
+        <button id="exportPdfBtn" class="ghost" type="button">Export PDF</button>
+        <button id="exportBtn" type="button">Export JSON</button>
+        <button id="importBtn" class="ghost" type="button">Import JSON</button>
+        <input id="importFile" type="file" accept="application/json" hidden />
+      </div>
+    </section>
+
+    <section class="legend card">
+      <div>
+        <div class="section-label">Time slices</div>
+        <div id="slotLegend" class="slot-legend"></div>
+      </div>
+      <div>
+        <div class="section-label">Tips</div>
+        <p class="tip">
+          Left-click a slice to paint it with the selected weather. Right-click or Alt-click to erase a slice.
+        </p>
+      </div>
+    </section>
+
+    <section class="settings card">
+      <div class="section-label">Settings</div>
+      <div class="settings-grid">
+        <label class="toggle-row">
+          <input id="hideIndicator" type="checkbox" />
+          <span>Hide color indicator</span>
+        </label>
+        <label>
+          Indicator color
+          <input id="indicatorColor" type="color" value="#1b4f72" />
+        </label>
+        <label>
+          Grid rows
+          <input id="gridRows" type="number" min="5" max="7" step="1" value="6" />
+        </label>
+      </div>
+      <div class="settings-subtitle">Weather indicators</div>
+      <div id="indicatorToggles" class="indicator-toggles"></div>
+    </section>
+
+    <section class="palette-wrap card">
+      <div class="section-label">Weather palette</div>
+      <div id="palette" class="palette" aria-label="Weather palette"></div>
+    </section>
+
+    <section class="workspace card">
+      <div class="workspace-header">
+        <div>
+          <div class="section-label">35-day wheel</div>
+          <h2 id="reportHeading">Weather report</h2>
+        </div>
+        <div class="workspace-note">
+          <span class="dot dot-empty"></span> empty
+          <span class="dot dot-filled"></span> painted
+        </div>
+      </div>
+
+      <div id="grid" class="grid" aria-label="Weather wheel grid"></div>
+    </section>
+
+    <section class="card data-panel">
+      <div class="workspace-header">
+        <div>
+          <div class="section-label">Data</div>
+          <h2>JSON payload</h2>
+        </div>
+      </div>
+      <textarea id="jsonOut" spellcheck="false"></textarea>
+    </section>
+  </main>
+
+  <script src="../shared.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
