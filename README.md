@@ -9,6 +9,14 @@ A static, browser-only workspace combining four local tools:
 
 No backend server, account, CDN, upload, or network request is required at runtime. Open `index.html` directly or serve this directory with any static file server.
 
+## GitHub Pages
+
+Craftdesk is deployed automatically to GitHub Pages by the workflow in `.github/workflows/pages.yml` whenever `main` changes. After the first workflow run, it is available at:
+
+`https://nano-rex.github.io/craftdesk/`
+
+In the repository settings, set **Pages > Build and deployment > Source** to **GitHub Actions** if GitHub has not selected it automatically.
+
 The converter's server-only document and media routes are intentionally unavailable in this distribution; browser-native routes are marked `native` in its format matrix.
 
 ## Structure
