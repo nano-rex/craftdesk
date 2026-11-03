@@ -23,6 +23,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Stamp asset URLs with the build
+        run: python3 tools/stamp-assets.py "${GITHUB_SHA::8}"
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload static site

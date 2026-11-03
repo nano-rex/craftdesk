@@ -824,8 +824,8 @@
 
   function syncGridInputs() {
     const layout = gridLayout();
-    els.gridRows.value = String(layout.rows);
-    els.gridCols.value = String(layout.cols);
+    if (els.gridRows) els.gridRows.value = String(layout.rows);
+    if (els.gridCols) els.gridCols.value = String(layout.cols);
   }
 
   function bindEvents() {
@@ -841,7 +841,7 @@
       saveState();
     });
 
-    [['rows', els.gridRows], ['cols', els.gridCols]].forEach(([side, input]) => {
+    [['rows', els.gridRows], ['cols', els.gridCols]].filter(([, input]) => input).forEach(([side, input]) => {
       input.addEventListener('input', () => {
         const value = Number(input.value);
         if (!Number.isInteger(value) || value < 1 || value > MAX_GRID_SIDE) return;
@@ -850,8 +850,8 @@
         state.gridFitSide = side;
         // Only rewrite the other field so typing in this one isn't interrupted.
         const layout = gridLayout();
-        if (side === 'rows') els.gridCols.value = String(layout.cols);
-        else els.gridRows.value = String(layout.rows);
+        const other = side === 'rows' ? els.gridCols : els.gridRows;
+        if (other) other.value = String(side === 'rows' ? layout.cols : layout.rows);
         renderGrid();
         saveState();
       });

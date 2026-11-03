@@ -1,3 +1,5 @@
+// Replaced with the commit id at deploy (tools/stamp-assets.py) so each deploy loads fresh tool pages.
+const BUILD = "dev";
 const apps = {
   gantt: { title: "Project planner", kicker: "TIMELINES", src: "apps/gantt/gantt.html" },
   converter: { title: "File converter", kicker: "LOCAL FORMATS", src: "apps/converter/index.html" },
@@ -12,7 +14,7 @@ const kicker = document.querySelector("#toolKicker");
 const tabs = [...document.querySelectorAll(".tab")];
 function openApp(name, updateHash = true) {
   const app = apps[name] || apps.gantt;
-  intro.hidden = true; view.hidden = false; document.body.classList.add("tool-open"); frame.src = app.src; title.textContent = app.title; kicker.textContent = app.kicker;
+  intro.hidden = true; view.hidden = false; document.body.classList.add("tool-open"); frame.src = `${app.src}?v=${BUILD}`; title.textContent = app.title; kicker.textContent = app.kicker;
   tabs.forEach(tab => tab.classList.toggle("active", tab.dataset.app === name));
   localStorage.setItem("craftdesk-app", name);
   if (updateHash) history.replaceState(null, "", `#${name}`);
