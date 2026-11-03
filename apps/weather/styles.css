@@ -148,6 +148,12 @@ h1 {
   gap: 0.4rem;
 }
 
+.grid-note {
+  margin: 0 0.3rem 0.6rem;
+  color: #8a5a12;
+  font-size: 0.9rem;
+}
+
 .grid-size-x {
   padding-bottom: 0.5rem;
   color: #65809b;

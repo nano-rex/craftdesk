@@ -50,6 +50,7 @@
     indicatorColor: document.getElementById('indicatorColor'),
     gridRows: document.getElementById('gridRows'),
     gridCols: document.getElementById('gridCols'),
+    gridNote: document.getElementById('gridNote'),
     indicatorToggles: document.getElementById('indicatorToggles'),
   };
 
@@ -64,7 +65,6 @@
     indicatorColor: '#1b4f72',
     gridRows: 6,
     gridCols: 6,
-    gridFitSide: 'rows',
   };
 
   function pad2(value) {
@@ -106,22 +106,15 @@
     return clamp(Math.round(n), 1, MAX_GRID_SIDE);
   }
 
-  // The stored rows/columns are what the user asked for. If they can't hold every day, the side the user
-  // did not set last grows for display only, so a passing keystroke ("1" on the way to "12") isn't sticky.
   function fitGrid() {
     state.gridRows = gridSide(state.gridRows, 6);
     state.gridCols = gridSide(state.gridCols, Math.ceil(DAYS / state.gridRows));
-    if (state.gridFitSide !== 'cols') state.gridFitSide = 'rows';
   }
 
+  // Rows and columns are independent settings. Days that don't fit carry on in extra rows below.
   function gridLayout() {
-    let rows = state.gridRows;
-    let cols = state.gridCols;
-    if (rows * cols < DAYS) {
-      if (state.gridFitSide === 'rows') cols = Math.ceil(DAYS / rows);
-      else rows = Math.ceil(DAYS / cols);
-    }
-    return { rows, cols };
+    const cols = state.gridCols;
+    return { rows: Math.max(state.gridRows, Math.ceil(DAYS / cols)), cols };
   }
 
   function gridColumns() {
@@ -521,7 +514,6 @@
         if (typeof parsed.indicatorColor === 'string') state.indicatorColor = parsed.indicatorColor;
         if (typeof parsed.gridRows === 'number') state.gridRows = parsed.gridRows;
         state.gridCols = typeof parsed.gridCols === 'number' ? parsed.gridCols : Math.ceil(DAYS / gridSide(state.gridRows, 6));
-        if (parsed.gridFitSide === 'rows' || parsed.gridFitSide === 'cols') state.gridFitSide = parsed.gridFitSide;
         if (Array.isArray(parsed.slots)) state.slots = safeCloneSlots(parsed.slots);
         if (isCurrentSchema && Array.isArray(parsed.indicators)) {
           parsed.indicators.forEach((entry) => {
@@ -559,7 +551,6 @@
       indicatorColor: state.indicatorColor,
       gridRows: state.gridRows,
       gridCols: state.gridCols,
-      gridFitSide: state.gridFitSide,
       schemaVersion: STATE_VERSION,
       indicators: WEATHER.map((item) => ({ id: item.id, label: item.label, color: item.color, enabled: item.enabled })),
     };
@@ -637,6 +628,12 @@
     els.grid.innerHTML = '';
     const cols = gridColumns();
     els.grid.style.setProperty('--grid-cols', String(cols));
+    if (els.gridNote) {
+      const extra = gridRowCount() - state.gridRows;
+      els.gridNote.hidden = extra <= 0;
+      els.gridNote.textContent = `${state.gridRows} × ${cols} holds ${state.gridRows * cols} of ${DAYS} days; ` +
+        `the rest continue in ${extra} more row${extra === 1 ? '' : 's'}.`;
+    }
     const start = parseLocalDate(state.startDate) || new Date();
 
     for (let dayIdx = 0; dayIdx < DAYS; dayIdx += 1) {
@@ -800,7 +797,6 @@
     if (typeof parsed.indicatorColor === 'string') state.indicatorColor = parsed.indicatorColor;
     if (typeof parsed.gridRows === 'number') state.gridRows = parsed.gridRows;
     state.gridCols = typeof parsed.gridCols === 'number' ? parsed.gridCols : Math.ceil(DAYS / gridSide(state.gridRows, 6));
-    if (parsed.gridFitSide === 'rows' || parsed.gridFitSide === 'cols') state.gridFitSide = parsed.gridFitSide;
     if (Array.isArray(parsed.slots)) state.slots = safeCloneSlots(parsed.slots);
     if (Array.isArray(parsed.indicators)) {
       parsed.indicators.forEach((entry) => {
@@ -823,9 +819,8 @@
   }
 
   function syncGridInputs() {
-    const layout = gridLayout();
-    if (els.gridRows) els.gridRows.value = String(layout.rows);
-    if (els.gridCols) els.gridCols.value = String(layout.cols);
+    if (els.gridRows) els.gridRows.value = String(state.gridRows);
+    if (els.gridCols) els.gridCols.value = String(state.gridCols);
   }
 
   function bindEvents() {
@@ -847,11 +842,6 @@
         if (!Number.isInteger(value) || value < 1 || value > MAX_GRID_SIDE) return;
         if (side === 'rows') state.gridRows = value;
         else state.gridCols = value;
-        state.gridFitSide = side;
-        // Only rewrite the other field so typing in this one isn't interrupted.
-        const layout = gridLayout();
-        const other = side === 'rows' ? els.gridCols : els.gridRows;
-        if (other) other.value = String(side === 'rows' ? layout.cols : layout.rows);
         renderGrid();
         saveState();
       });
