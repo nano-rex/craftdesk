@@ -8,11 +8,14 @@
   const OUTER_HOUR_LABELS = ['12pm', '1pm', '2pm', '3pm', '4pm', '5pm', '6pm', '7pm', '8pm', '9pm', '10pm', '11pm'];
   const DIAL_VIEWBOX = 220;
   const DIAL_CENTER = 110;
+  // Rings sit flush against each other and the center disc, so the dial fills its box.
   const DIAL_CENTER_R = 30;
-  const DIAL_INNER_INNER_R = 34;
-  const DIAL_INNER_OUTER_R = 66;
-  const DIAL_OUTER_INNER_R = 76;
+  const DIAL_INNER_INNER_R = DIAL_CENTER_R;
+  const DIAL_INNER_OUTER_R = 70;
+  const DIAL_OUTER_INNER_R = DIAL_INNER_OUTER_R;
   const DIAL_OUTER_OUTER_R = 108;
+  const MIN_GRID_ROWS = 3;
+  const MAX_GRID_ROWS = 7;
 
   const WEATHER_DEFAULTS = [
     { id: 'fair', label: 'Fair', color: '#f6c453', enabled: false },
@@ -32,7 +35,6 @@
     selectedWeatherLabel: document.getElementById('selectedWeatherLabel'),
     paintedCount: document.getElementById('paintedCount'),
     palette: document.getElementById('palette'),
-    slotLegend: document.getElementById('slotLegend'),
     grid: document.getElementById('grid'),
     jsonOut: document.getElementById('jsonOut'),
     reportHeading: document.getElementById('reportHeading'),
@@ -48,6 +50,7 @@
     hideIndicator: document.getElementById('hideIndicator'),
     indicatorColor: document.getElementById('indicatorColor'),
     gridRows: document.getElementById('gridRows'),
+    gridShape: document.getElementById('gridShape'),
     indicatorToggles: document.getElementById('indicatorToggles'),
   };
 
@@ -99,18 +102,11 @@
   function normalizedGridRows() {
     const rows = Number(state.gridRows);
     if (!Number.isFinite(rows)) return 6;
-    return Math.max(5, Math.min(7, Math.round(rows)));
+    return clamp(Math.round(rows), MIN_GRID_ROWS, MAX_GRID_ROWS);
   }
 
   function gridColumns() {
-    return 5;
-  }
-
-  function cardHeightForRows() {
-    const rows = normalizedGridRows();
-    if (rows <= 5) return 360;
-    if (rows === 6) return 332;
-    return 300;
+    return Math.ceil(DAYS / normalizedGridRows());
   }
 
   function resetWeatherDefaults() {
@@ -272,23 +268,29 @@
   }
 
   function getExportLayout() {
+    const width = 1680;
+    const margin = 48;
+    const gap = 12;
+    const cols = gridColumns();
+    const cardW = (width - margin * 2 - gap * (cols - 1)) / cols;
     return {
-      width: 1680,
-      margin: 60,
-      headerH: 210,
-      gap: 18,
-      cols: gridColumns(),
-      cardH: cardHeightForRows(),
+      width,
+      margin,
+      headerH: 170,
+      gap,
+      cols,
+      rows: Math.ceil(DAYS / cols),
+      cardW,
+      cardH: cardW,
     };
   }
 
   function drawExportReport(ctx, width, height) {
     const layout = getExportLayout();
-    const { margin, headerH, gap, cols, cardH } = layout;
+    const { margin, headerH, gap, cols, cardW, cardH } = layout;
     const start = parseLocalDate(state.startDate) || new Date();
-    const contentW = width - margin * 2;
-    const cardW = (contentW - gap * (cols - 1)) / cols;
-    const rows = Math.ceil(DAYS / cols);
+    // Dial geometry is defined in the 220-unit SVG viewBox; scale it to the export card.
+    const dialScale = (cardW - 8) / DIAL_VIEWBOX;
 
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
@@ -296,18 +298,21 @@
     ctx.fillStyle = '#102033';
     ctx.font = '800 40px "Trebuchet MS", "Gill Sans", "Segoe UI", sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(state.title || 'Weather report', margin, 84);
+    ctx.fillText(state.title || 'Weather report', margin, 76);
     ctx.font = '500 18px "Trebuchet MS", "Gill Sans", "Segoe UI", sans-serif';
     ctx.fillStyle = '#456177';
-    ctx.fillText(`Start date: ${formatDateLabel(start)}`, margin, 116);
+    ctx.fillText(`Start date: ${formatDateLabel(start)}`, margin, 106);
 
-    const paletteY = 146;
+    const paletteY = 126;
     enabledWeatherList().forEach((item, idx) => {
       const x = margin + idx * 248;
       ctx.fillStyle = item.color;
       ctx.beginPath();
       ctx.arc(x + 10, paletteY + 8, 8, 0, Math.PI * 2);
       ctx.fill();
+      ctx.strokeStyle = 'rgba(23, 50, 76, 0.35)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
       ctx.fillStyle = '#17324c';
       ctx.font = '600 14px "Trebuchet MS", "Gill Sans", "Segoe UI", sans-serif';
       ctx.fillText(item.label, x + 28, paletteY + 13);
@@ -329,26 +334,18 @@
       ctx.shadowBlur = 16;
       ctx.shadowOffsetY = 8;
       ctx.fillStyle = 'rgba(255,255,255,0.95)';
-      drawRoundedRect(ctx, x, y, cardW, cardH, 24);
+      drawRoundedRect(ctx, x, y, cardW, cardH, 16);
       ctx.fill();
       ctx.restore();
       ctx.strokeStyle = 'rgba(23, 50, 76, 0.12)';
       ctx.stroke();
 
-      ctx.fillStyle = '#17324c';
-      ctx.font = '800 20px "Trebuchet MS", "Gill Sans", "Segoe UI", sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(String(dayNo), x + 18, y + 28);
-      ctx.fillStyle = '#60809b';
-      ctx.font = '700 11px "Trebuchet MS", "Gill Sans", "Segoe UI", sans-serif';
-      ctx.fillText(month.toUpperCase(), x + 18, y + 46);
-
       const cx = x + cardW / 2;
-      const cy = y + 148;
-      const innerOuterR = DIAL_INNER_OUTER_R;
-      const innerInnerR = DIAL_INNER_INNER_R;
-      const outerInnerR = DIAL_OUTER_INNER_R;
-      const outerOuterR = DIAL_OUTER_OUTER_R;
+      const cy = y + cardH / 2;
+      const innerOuterR = DIAL_INNER_OUTER_R * dialScale;
+      const innerInnerR = DIAL_INNER_INNER_R * dialScale;
+      const outerInnerR = DIAL_OUTER_INNER_R * dialScale;
+      const outerOuterR = DIAL_OUTER_OUTER_R * dialScale;
       const sliceAngle = 360 / HOURS_PER_RING;
       for (let slotIdx = 0; slotIdx < SLOTS_PER_DAY; slotIdx += 1) {
         const isInner = slotIdx < HOURS_PER_RING;
@@ -375,7 +372,7 @@
         );
         ctx.save();
         ctx.fillStyle = sliceLabelColor(fillColor);
-        ctx.font = `700 ${isInner ? 8.5 : 9.5}px "Trebuchet MS", "Gill Sans", "Segoe UI", sans-serif`;
+        ctx.font = `700 ${(isInner ? 8 : 9) * dialScale}px "Trebuchet MS", "Gill Sans", "Segoe UI", sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(label, labelPos.x, labelPos.y);
@@ -383,24 +380,24 @@
       }
       ctx.fillStyle = 'rgba(255,255,255,0.94)';
       ctx.beginPath();
-      ctx.arc(cx, cy, 24, 0, Math.PI * 2);
+      ctx.arc(cx, cy, DIAL_CENTER_R * dialScale, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = 'rgba(23, 50, 76, 0.12)';
       ctx.stroke();
 
       ctx.fillStyle = '#17324c';
       ctx.textAlign = 'center';
-      ctx.font = '800 20px "Trebuchet MS", "Gill Sans", "Segoe UI", sans-serif';
-      ctx.fillText(String(dayNo), cx, cy - 2);
+      ctx.font = `800 ${18 * dialScale}px "Trebuchet MS", "Gill Sans", "Segoe UI", sans-serif`;
+      ctx.fillText(String(dayNo), cx, cy + 1 * dialScale);
       ctx.fillStyle = '#5e758b';
-      ctx.font = '700 10px "Trebuchet MS", "Gill Sans", "Segoe UI", sans-serif';
-      ctx.fillText(month.toUpperCase(), cx, cy + 15);
+      ctx.font = `700 ${9 * dialScale}px "Trebuchet MS", "Gill Sans", "Segoe UI", sans-serif`;
+      ctx.fillText(month.toUpperCase(), cx, cy + 14 * dialScale);
     }
   }
 
   async function buildExportCanvas() {
     const layout = getExportLayout();
-    const rows = Math.ceil(DAYS / layout.cols);
+    const { rows } = layout;
     const width = layout.width;
     const height = layout.headerH + rows * layout.cardH + (rows - 1) * layout.gap + layout.margin;
     const scale = 2;
@@ -609,36 +606,11 @@
     });
   }
 
-  function renderSlotLegend() {
-    els.slotLegend.innerHTML = '';
-    const groups = [
-      { title: 'Inner ring: 12am - 11am', labels: INNER_HOUR_LABELS },
-      { title: 'Outer ring: 12pm - 11pm', labels: OUTER_HOUR_LABELS },
-    ];
-    groups.forEach((group) => {
-      const block = document.createElement('div');
-      const heading = document.createElement('div');
-      heading.className = 'slot-group-title';
-      heading.textContent = group.title;
-      block.appendChild(heading);
-      const row = document.createElement('div');
-      row.className = 'slot-row';
-      group.labels.forEach((label) => {
-        const pill = document.createElement('div');
-        pill.className = 'slot-pill';
-        pill.textContent = label;
-        row.appendChild(pill);
-      });
-      block.appendChild(row);
-      els.slotLegend.appendChild(block);
-    });
-  }
-
   function renderGrid() {
     els.grid.innerHTML = '';
     const cols = gridColumns();
     els.grid.style.setProperty('--grid-cols', String(cols));
-    els.grid.style.setProperty('--day-card-height', `${cardHeightForRows()}px`);
+    els.gridShape.textContent = `(${Math.ceil(DAYS / cols)} × ${cols})`;
     const start = parseLocalDate(state.startDate) || new Date();
 
     for (let dayIdx = 0; dayIdx < DAYS; dayIdx += 1) {
@@ -648,13 +620,7 @@
       card.dataset.day = String(dayIdx);
       if (dayIdx === state.selectedDay) card.classList.add('selected');
 
-      const head = document.createElement('div');
-      head.className = 'day-head';
-      head.innerHTML = `
-        <div class="day-num">${date.getDate()}</div>
-        <div class="day-date">${formatDateLabel(date)}</div>
-      `;
-      card.appendChild(head);
+      card.title = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
       const wrap = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       wrap.classList.add('dial');
@@ -727,7 +693,7 @@
 
       const dayLabel = createSvgEl('text');
       dayLabel.setAttribute('x', String(DIAL_CENTER));
-      dayLabel.setAttribute('y', '104');
+      dayLabel.setAttribute('y', '111');
       dayLabel.setAttribute('text-anchor', 'middle');
       dayLabel.setAttribute('class', 'center-label');
       dayLabel.textContent = String(date.getDate());
@@ -735,7 +701,7 @@
 
       const monthLabel = createSvgEl('text');
       monthLabel.setAttribute('x', String(DIAL_CENTER));
-      monthLabel.setAttribute('y', '124');
+      monthLabel.setAttribute('y', '125');
       monthLabel.setAttribute('text-anchor', 'middle');
       monthLabel.setAttribute('class', 'dial-label');
       monthLabel.textContent = date.toLocaleDateString('en-US', { month: 'short' });
@@ -842,11 +808,14 @@
     });
 
     els.gridRows.addEventListener('input', () => {
-      state.gridRows = normalizedGridRows();
-      els.gridRows.value = String(state.gridRows);
+      const rows = Number(els.gridRows.value);
+      if (!Number.isInteger(rows) || rows < MIN_GRID_ROWS || rows > MAX_GRID_ROWS) return;
+      state.gridRows = rows;
       renderGrid();
-      updateSummary();
       saveState();
+    });
+    els.gridRows.addEventListener('change', () => {
+      els.gridRows.value = String(normalizedGridRows());
     });
 
     els.startDate.addEventListener('input', () => {
@@ -894,6 +863,7 @@
     });
 
     window.addEventListener('keydown', (ev) => {
+      if (ev.target.closest('input, textarea, select')) return;
       if (ev.key >= '1' && ev.key <= '5') {
         const idx = Number(ev.key) - 1;
         const item = enabledWeatherList()[idx];
@@ -924,7 +894,6 @@
     }
     els.jsonOut.value = JSON.stringify(serializeState(), null, 2);
     renderPalette();
-    renderSlotLegend();
     renderIndicatorToggles();
     renderGrid();
     updateSummary();
