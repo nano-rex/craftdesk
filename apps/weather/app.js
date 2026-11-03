@@ -1,7 +1,8 @@
 (() => {
   const STORAGE_KEY = 'weather-monthly-report-state-v1';
   const STATE_VERSION = 3;
-  const DAYS = 35;
+  // Saves from before the grid set the day count had 35 days; used to derive their column count.
+  const LEGACY_DAYS = 35;
   const HOURS_PER_RING = 12;
   const SLOTS_PER_DAY = 24;
   const INNER_HOUR_LABELS = ['12am', '1am', '2am', '3am', '4am', '5am', '6am', '7am', '8am', '9am', '10am', '11am'];
@@ -14,7 +15,7 @@
   const DIAL_INNER_OUTER_R = 70;
   const DIAL_OUTER_INNER_R = DIAL_INNER_OUTER_R;
   const DIAL_OUTER_OUTER_R = 108;
-  const MAX_GRID_SIDE = DAYS;
+  const MAX_GRID_SIDE = 35;
 
   const WEATHER_DEFAULTS = [
     { id: 'fair', label: 'Fair', color: '#f6c453', enabled: false },
@@ -50,7 +51,7 @@
     indicatorColor: document.getElementById('indicatorColor'),
     gridRows: document.getElementById('gridRows'),
     gridCols: document.getElementById('gridCols'),
-    gridNote: document.getElementById('gridNote'),
+    dayCountLabel: document.getElementById('dayCountLabel'),
     indicatorToggles: document.getElementById('indicatorToggles'),
   };
 
@@ -60,7 +61,7 @@
     activeWeatherId: WEATHER[0].id,
     selectedDay: 0,
     selectedSlot: 0,
-    slots: Array.from({ length: DAYS }, () => Array(SLOTS_PER_DAY).fill(null)),
+    slots: [],
     hideIndicator: false,
     indicatorColor: '#1b4f72',
     gridRows: 6,
@@ -108,13 +109,21 @@
 
   function fitGrid() {
     state.gridRows = gridSide(state.gridRows, 6);
-    state.gridCols = gridSide(state.gridCols, Math.ceil(DAYS / state.gridRows));
+    state.gridCols = gridSide(state.gridCols, 6);
   }
 
-  // Rows and columns are independent settings. Days that don't fit carry on in extra rows below.
+  // The grid decides how many days the report covers: one day per cell.
   function gridLayout() {
-    const cols = state.gridCols;
-    return { rows: Math.max(state.gridRows, Math.ceil(DAYS / cols)), cols };
+    return { rows: state.gridRows, cols: state.gridCols };
+  }
+
+  function dayCount() {
+    return state.gridRows * state.gridCols;
+  }
+
+  // Days past the current grid keep their data, so shrinking and re-growing the grid loses nothing.
+  function ensureSlots() {
+    while (state.slots.length < dayCount()) state.slots.push(Array(SLOTS_PER_DAY).fill(null));
   }
 
   function gridColumns() {
@@ -335,7 +344,7 @@
     });
 
     const gridTop = headerH;
-    for (let dayIdx = 0; dayIdx < DAYS; dayIdx += 1) {
+    for (let dayIdx = 0; dayIdx < dayCount(); dayIdx += 1) {
       const row = Math.floor(dayIdx / cols);
       const col = dayIdx % cols;
       const x = margin + col * (cardW + gap);
@@ -488,10 +497,8 @@
   }
 
   function safeCloneSlots(slots) {
-    if (!Array.isArray(slots)) {
-      return Array.from({ length: DAYS }, () => Array(SLOTS_PER_DAY).fill(null));
-    }
-    return Array.from({ length: DAYS }, (_, dayIdx) => {
+    if (!Array.isArray(slots)) return [];
+    return Array.from({ length: slots.length }, (_, dayIdx) => {
       const day = slots[dayIdx];
       if (!Array.isArray(day)) return Array(SLOTS_PER_DAY).fill(null);
       return day.slice(0, SLOTS_PER_DAY).map((slot) => slot || null).concat(Array(Math.max(0, SLOTS_PER_DAY - day.length)).fill(null)).slice(0, SLOTS_PER_DAY);
@@ -513,7 +520,7 @@
         if (typeof parsed.hideIndicator === 'boolean') state.hideIndicator = parsed.hideIndicator;
         if (typeof parsed.indicatorColor === 'string') state.indicatorColor = parsed.indicatorColor;
         if (typeof parsed.gridRows === 'number') state.gridRows = parsed.gridRows;
-        state.gridCols = typeof parsed.gridCols === 'number' ? parsed.gridCols : Math.ceil(DAYS / gridSide(state.gridRows, 6));
+        state.gridCols = typeof parsed.gridCols === 'number' ? parsed.gridCols : Math.ceil(LEGACY_DAYS / gridSide(state.gridRows, 6));
         if (Array.isArray(parsed.slots)) state.slots = safeCloneSlots(parsed.slots);
         if (isCurrentSchema && Array.isArray(parsed.indicators)) {
           parsed.indicators.forEach((entry) => {
@@ -541,12 +548,19 @@
     }
   }
 
+  // Visible days plus any hidden ones that still hold data; trailing empty hidden days are dropped.
+  function savedSlots() {
+    let end = state.slots.length;
+    while (end > dayCount() && !state.slots[end - 1].some(Boolean)) end -= 1;
+    return state.slots.slice(0, end);
+  }
+
   function serializeState() {
     return {
       title: state.title,
       startDate: state.startDate,
       activeWeatherId: state.activeWeatherId,
-      slots: state.slots,
+      slots: savedSlots(),
       hideIndicator: state.hideIndicator,
       indicatorColor: state.indicatorColor,
       gridRows: state.gridRows,
@@ -558,7 +572,7 @@
 
   function updateSummary() {
     const reportStart = parseLocalDate(state.startDate) || new Date();
-    const painted = state.slots.flat().filter(Boolean).length;
+    const painted = state.slots.slice(0, dayCount()).flat().filter(Boolean).length;
     els.reportStartLabel.textContent = formatDateLabel(reportStart);
     els.reportHeading.textContent = state.title || 'Weather report';
     const activeWeather = weatherById(state.activeWeatherId);
@@ -566,7 +580,7 @@
     els.selectedWeatherSwatch.style.background = state.indicatorColor;
     els.selectedWeatherSwatch.style.display = state.hideIndicator ? 'none' : 'inline-block';
     els.selectedWeatherLabel.classList.toggle('hide-indicator', state.hideIndicator);
-    els.paintedCount.textContent = `${painted} / ${DAYS * SLOTS_PER_DAY}`;
+    els.paintedCount.textContent = `${painted} / ${dayCount() * SLOTS_PER_DAY}`;
   }
 
   function renderPalette() {
@@ -628,15 +642,12 @@
     els.grid.innerHTML = '';
     const cols = gridColumns();
     els.grid.style.setProperty('--grid-cols', String(cols));
-    if (els.gridNote) {
-      const extra = gridRowCount() - state.gridRows;
-      els.gridNote.hidden = extra <= 0;
-      els.gridNote.textContent = `${state.gridRows} × ${cols} holds ${state.gridRows * cols} of ${DAYS} days; ` +
-        `the rest continue in ${extra} more row${extra === 1 ? '' : 's'}.`;
-    }
+    ensureSlots();
+    state.selectedDay = clamp(state.selectedDay, 0, dayCount() - 1);
+    if (els.dayCountLabel) els.dayCountLabel.textContent = `${dayCount()}-day wheel`;
     const start = parseLocalDate(state.startDate) || new Date();
 
-    for (let dayIdx = 0; dayIdx < DAYS; dayIdx += 1) {
+    for (let dayIdx = 0; dayIdx < dayCount(); dayIdx += 1) {
       const date = addDays(start, dayIdx);
       const card = document.createElement('article');
       card.className = 'day-card';
@@ -742,15 +753,6 @@
 
       els.grid.appendChild(card);
     }
-
-    const fillers = gridRowCount() * cols - DAYS;
-    for (let i = 0; i < fillers; i += 1) {
-      const filler = document.createElement('article');
-      filler.className = 'grid-filler';
-      filler.setAttribute('aria-hidden', 'true');
-      els.grid.appendChild(filler);
-    }
-
   }
 
   function paintSlot(dayIdx, slotIdx, erase = false) {
@@ -773,7 +775,7 @@
   }
 
   function clearAll() {
-    state.slots = Array.from({ length: DAYS }, () => Array(SLOTS_PER_DAY).fill(null));
+    state.slots = Array.from({ length: dayCount() }, () => Array(SLOTS_PER_DAY).fill(null));
     renderGrid();
     updateSummary();
     saveState();
@@ -796,7 +798,7 @@
     if (typeof parsed.hideIndicator === 'boolean') state.hideIndicator = parsed.hideIndicator;
     if (typeof parsed.indicatorColor === 'string') state.indicatorColor = parsed.indicatorColor;
     if (typeof parsed.gridRows === 'number') state.gridRows = parsed.gridRows;
-    state.gridCols = typeof parsed.gridCols === 'number' ? parsed.gridCols : Math.ceil(DAYS / gridSide(state.gridRows, 6));
+    state.gridCols = typeof parsed.gridCols === 'number' ? parsed.gridCols : Math.ceil(LEGACY_DAYS / gridSide(state.gridRows, 6));
     if (Array.isArray(parsed.slots)) state.slots = safeCloneSlots(parsed.slots);
     if (Array.isArray(parsed.indicators)) {
       parsed.indicators.forEach((entry) => {
@@ -843,6 +845,7 @@
         if (side === 'rows') state.gridRows = value;
         else state.gridCols = value;
         renderGrid();
+        updateSummary();
         saveState();
       });
       input.addEventListener('change', syncGridInputs);

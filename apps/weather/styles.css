@@ -148,12 +148,6 @@ h1 {
   gap: 0.4rem;
 }
 
-.grid-note {
-  margin: 0 0.3rem 0.6rem;
-  color: #8a5a12;
-  font-size: 0.9rem;
-}
-
 .grid-size-x {
   padding-bottom: 0.5rem;
   color: #65809b;
@@ -417,14 +411,6 @@ details.card > summary {
   padding: 0;
   border: 0;
   background: transparent;
-}
-
-.grid-filler {
-  visibility: hidden;
-  pointer-events: none;
-  min-height: 0;
-  padding: 0;
-  border: 0;
 }
 
 @media (max-width: 1080px) {
