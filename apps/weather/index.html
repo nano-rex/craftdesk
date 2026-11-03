@@ -40,10 +40,17 @@
           Report title
           <input id="reportTitle" type="text" placeholder="Weather report" />
         </label>
-        <label>
-          Grid rows <span id="gridShape" class="field-hint"></span>
-          <input id="gridRows" type="number" min="3" max="7" step="1" value="6" />
-        </label>
+        <div class="grid-size">
+          <label>
+            Rows
+            <input id="gridRows" type="number" min="1" max="35" step="1" value="6" />
+          </label>
+          <span class="grid-size-x" aria-hidden="true">×</span>
+          <label>
+            Columns
+            <input id="gridCols" type="number" min="1" max="35" step="1" value="6" />
+          </label>
+        </div>
       </div>
 
       <div class="palette-row">

@@ -14,8 +14,7 @@
   const DIAL_INNER_OUTER_R = 70;
   const DIAL_OUTER_INNER_R = DIAL_INNER_OUTER_R;
   const DIAL_OUTER_OUTER_R = 108;
-  const MIN_GRID_ROWS = 3;
-  const MAX_GRID_ROWS = 7;
+  const MAX_GRID_SIDE = DAYS;
 
   const WEATHER_DEFAULTS = [
     { id: 'fair', label: 'Fair', color: '#f6c453', enabled: false },
@@ -50,7 +49,7 @@
     hideIndicator: document.getElementById('hideIndicator'),
     indicatorColor: document.getElementById('indicatorColor'),
     gridRows: document.getElementById('gridRows'),
-    gridShape: document.getElementById('gridShape'),
+    gridCols: document.getElementById('gridCols'),
     indicatorToggles: document.getElementById('indicatorToggles'),
   };
 
@@ -64,6 +63,8 @@
     hideIndicator: false,
     indicatorColor: '#1b4f72',
     gridRows: 6,
+    gridCols: 6,
+    gridFitSide: 'rows',
   };
 
   function pad2(value) {
@@ -99,14 +100,36 @@
     return WEATHER.filter((item) => item.enabled);
   }
 
-  function normalizedGridRows() {
-    const rows = Number(state.gridRows);
-    if (!Number.isFinite(rows)) return 6;
-    return clamp(Math.round(rows), MIN_GRID_ROWS, MAX_GRID_ROWS);
+  function gridSide(value, fallback) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    return clamp(Math.round(n), 1, MAX_GRID_SIDE);
+  }
+
+  // The stored rows/columns are what the user asked for. If they can't hold every day, the side the user
+  // did not set last grows for display only, so a passing keystroke ("1" on the way to "12") isn't sticky.
+  function fitGrid() {
+    state.gridRows = gridSide(state.gridRows, 6);
+    state.gridCols = gridSide(state.gridCols, Math.ceil(DAYS / state.gridRows));
+    if (state.gridFitSide !== 'cols') state.gridFitSide = 'rows';
+  }
+
+  function gridLayout() {
+    let rows = state.gridRows;
+    let cols = state.gridCols;
+    if (rows * cols < DAYS) {
+      if (state.gridFitSide === 'rows') cols = Math.ceil(DAYS / rows);
+      else rows = Math.ceil(DAYS / cols);
+    }
+    return { rows, cols };
   }
 
   function gridColumns() {
-    return Math.ceil(DAYS / normalizedGridRows());
+    return gridLayout().cols;
+  }
+
+  function gridRowCount() {
+    return gridLayout().rows;
   }
 
   function resetWeatherDefaults() {
@@ -279,7 +302,7 @@
       headerH: 170,
       gap,
       cols,
-      rows: Math.ceil(DAYS / cols),
+      rows: gridRowCount(),
       cardW,
       cardH: cardW,
     };
@@ -497,6 +520,8 @@
         if (typeof parsed.hideIndicator === 'boolean') state.hideIndicator = parsed.hideIndicator;
         if (typeof parsed.indicatorColor === 'string') state.indicatorColor = parsed.indicatorColor;
         if (typeof parsed.gridRows === 'number') state.gridRows = parsed.gridRows;
+        state.gridCols = typeof parsed.gridCols === 'number' ? parsed.gridCols : Math.ceil(DAYS / gridSide(state.gridRows, 6));
+        if (parsed.gridFitSide === 'rows' || parsed.gridFitSide === 'cols') state.gridFitSide = parsed.gridFitSide;
         if (Array.isArray(parsed.slots)) state.slots = safeCloneSlots(parsed.slots);
         if (isCurrentSchema && Array.isArray(parsed.indicators)) {
           parsed.indicators.forEach((entry) => {
@@ -532,7 +557,9 @@
       slots: state.slots,
       hideIndicator: state.hideIndicator,
       indicatorColor: state.indicatorColor,
-      gridRows: normalizedGridRows(),
+      gridRows: state.gridRows,
+      gridCols: state.gridCols,
+      gridFitSide: state.gridFitSide,
       schemaVersion: STATE_VERSION,
       indicators: WEATHER.map((item) => ({ id: item.id, label: item.label, color: item.color, enabled: item.enabled })),
     };
@@ -610,7 +637,6 @@
     els.grid.innerHTML = '';
     const cols = gridColumns();
     els.grid.style.setProperty('--grid-cols', String(cols));
-    els.gridShape.textContent = `(${Math.ceil(DAYS / cols)} × ${cols})`;
     const start = parseLocalDate(state.startDate) || new Date();
 
     for (let dayIdx = 0; dayIdx < DAYS; dayIdx += 1) {
@@ -720,7 +746,7 @@
       els.grid.appendChild(card);
     }
 
-    const fillers = Math.ceil(DAYS / cols) * cols - DAYS;
+    const fillers = gridRowCount() * cols - DAYS;
     for (let i = 0; i < fillers; i += 1) {
       const filler = document.createElement('article');
       filler.className = 'grid-filler';
@@ -773,6 +799,8 @@
     if (typeof parsed.hideIndicator === 'boolean') state.hideIndicator = parsed.hideIndicator;
     if (typeof parsed.indicatorColor === 'string') state.indicatorColor = parsed.indicatorColor;
     if (typeof parsed.gridRows === 'number') state.gridRows = parsed.gridRows;
+    state.gridCols = typeof parsed.gridCols === 'number' ? parsed.gridCols : Math.ceil(DAYS / gridSide(state.gridRows, 6));
+    if (parsed.gridFitSide === 'rows' || parsed.gridFitSide === 'cols') state.gridFitSide = parsed.gridFitSide;
     if (Array.isArray(parsed.slots)) state.slots = safeCloneSlots(parsed.slots);
     if (Array.isArray(parsed.indicators)) {
       parsed.indicators.forEach((entry) => {
@@ -781,17 +809,23 @@
         if (item && typeof entry.color === 'string') item.color = entry.color;
       });
     }
-    state.gridRows = normalizedGridRows();
+    fitGrid();
     els.reportTitle.value = state.title;
     els.startDate.value = state.startDate;
     els.hideIndicator.checked = state.hideIndicator;
     els.indicatorColor.value = state.indicatorColor;
-    els.gridRows.value = String(normalizedGridRows());
+    syncGridInputs();
     renderPalette();
     renderIndicatorToggles();
     renderGrid();
     updateSummary();
     saveState();
+  }
+
+  function syncGridInputs() {
+    const layout = gridLayout();
+    els.gridRows.value = String(layout.rows);
+    els.gridCols.value = String(layout.cols);
   }
 
   function bindEvents() {
@@ -807,15 +841,21 @@
       saveState();
     });
 
-    els.gridRows.addEventListener('input', () => {
-      const rows = Number(els.gridRows.value);
-      if (!Number.isInteger(rows) || rows < MIN_GRID_ROWS || rows > MAX_GRID_ROWS) return;
-      state.gridRows = rows;
-      renderGrid();
-      saveState();
-    });
-    els.gridRows.addEventListener('change', () => {
-      els.gridRows.value = String(normalizedGridRows());
+    [['rows', els.gridRows], ['cols', els.gridCols]].forEach(([side, input]) => {
+      input.addEventListener('input', () => {
+        const value = Number(input.value);
+        if (!Number.isInteger(value) || value < 1 || value > MAX_GRID_SIDE) return;
+        if (side === 'rows') state.gridRows = value;
+        else state.gridCols = value;
+        state.gridFitSide = side;
+        // Only rewrite the other field so typing in this one isn't interrupted.
+        const layout = gridLayout();
+        if (side === 'rows') els.gridCols.value = String(layout.cols);
+        else els.gridRows.value = String(layout.rows);
+        renderGrid();
+        saveState();
+      });
+      input.addEventListener('change', syncGridInputs);
     });
 
     els.startDate.addEventListener('input', () => {
@@ -881,12 +921,12 @@
 
   function init() {
     loadState();
-    state.gridRows = normalizedGridRows();
+    fitGrid();
     els.startDate.value = state.startDate;
     els.reportTitle.value = state.title;
     els.hideIndicator.checked = state.hideIndicator;
     els.indicatorColor.value = state.indicatorColor;
-    els.gridRows.value = String(normalizedGridRows());
+    syncGridInputs();
     if (!enabledWeatherList().some((item) => item.id === state.activeWeatherId)) {
       const fallback = enabledWeatherList()[0] || WEATHER[0];
       fallback.enabled = true;
