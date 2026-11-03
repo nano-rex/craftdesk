@@ -10,13 +10,9 @@
 <body>
   <main class="shell">
     <section class="hero card">
-      <div>
+      <div class="hero-title">
         <p class="eyebrow">Interactive weather worksheet</p>
         <h1>Monthly Weather Wheel</h1>
-        <p class="lede">
-          Track 35 consecutive days with a two-ring weather wheel. The inner ring covers 12am to 11am and the
-          outer ring covers 12pm to 11pm.
-        </p>
       </div>
       <div class="hero-stats">
         <div class="stat">
@@ -44,6 +40,15 @@
           Report title
           <input id="reportTitle" type="text" placeholder="Weather report" />
         </label>
+        <label>
+          Grid rows <span id="gridShape" class="field-hint"></span>
+          <input id="gridRows" type="number" min="3" max="7" step="1" value="6" />
+        </label>
+      </div>
+
+      <div class="palette-row">
+        <div class="section-label">Weather</div>
+        <div id="palette" class="palette" aria-label="Weather palette"></div>
       </div>
 
       <div class="action-row">
@@ -57,43 +62,21 @@
       </div>
     </section>
 
-    <section class="legend card">
-      <div>
-        <div class="section-label">Time slices</div>
-        <div id="slotLegend" class="slot-legend"></div>
-      </div>
-      <div>
-        <div class="section-label">Tips</div>
-        <p class="tip">
-          Left-click a slice to paint it with the selected weather. Right-click or Alt-click to erase a slice.
-        </p>
-      </div>
-    </section>
-
-    <section class="settings card">
-      <div class="section-label">Settings</div>
+    <details class="settings card">
+      <summary class="section-label">Settings</summary>
       <div class="settings-grid">
         <label class="toggle-row">
           <input id="hideIndicator" type="checkbox" />
           <span>Hide color indicator</span>
         </label>
-        <label>
+        <label class="inline-field">
           Indicator color
           <input id="indicatorColor" type="color" value="#1b4f72" />
-        </label>
-        <label>
-          Grid rows
-          <input id="gridRows" type="number" min="5" max="7" step="1" value="6" />
         </label>
       </div>
       <div class="settings-subtitle">Weather indicators</div>
       <div id="indicatorToggles" class="indicator-toggles"></div>
-    </section>
-
-    <section class="palette-wrap card">
-      <div class="section-label">Weather palette</div>
-      <div id="palette" class="palette" aria-label="Weather palette"></div>
-    </section>
+    </details>
 
     <section class="workspace card">
       <div class="workspace-header">
@@ -101,24 +84,18 @@
           <div class="section-label">35-day wheel</div>
           <h2 id="reportHeading">Weather report</h2>
         </div>
-        <div class="workspace-note">
-          <span class="dot dot-empty"></span> empty
-          <span class="dot dot-filled"></span> painted
-        </div>
+        <p class="tip">
+          Inner ring 12am–11am, outer ring 12pm–11pm. Click a slice to paint it; right-click or Alt-click to erase.
+        </p>
       </div>
 
       <div id="grid" class="grid" aria-label="Weather wheel grid"></div>
     </section>
 
-    <section class="card data-panel">
-      <div class="workspace-header">
-        <div>
-          <div class="section-label">Data</div>
-          <h2>JSON payload</h2>
-        </div>
-      </div>
+    <details class="card data-panel">
+      <summary class="section-label">JSON payload</summary>
       <textarea id="jsonOut" spellcheck="false"></textarea>
-    </section>
+    </details>
   </main>
 
   <script src="../shared.js"></script>
